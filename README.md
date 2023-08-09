@@ -66,3 +66,52 @@ Use the Cisco Secure Firewall Management Center (FMC) API to leverage the inform
           +----------------------------------------------------+
           |                  End Program                       |
           +----------------------------------------------------+
+
+
+# Contacts
+* Renan Hingel (renanhingel@gmail.com)
+
+## Solution Components
+* Cisco FMC API
+* Python
+
+## Installation:
+
+### Console
+#### Clone the repo
+```console
+git clone https://github.com/RenanHingel/fmc_unsupported_algorithms.git
+```
+
+### Python
+
+#### Set up a Python venv
+First make sure that you have Python 3 installed on your machine. We will then be using venv to create
+an isolated environment with only the necessary packages.
+
+##### Install virtualenv via pip
+```
+pip install virtualenv
+```
+
+##### Create a new venv
+```
+# Change to your project folder
+cd fmc_unsupported_algorithms
+
+# Create the venv
+virtualenv venv
+
+# Activate your venv
+source venv/bin/activate
+```
+
+#### Install dependencies
+```zsh
+pip3 install -r requirements.txt
+```
+
+#### Run the script
+```
+python3 get_vpn_requirements.py
+```
