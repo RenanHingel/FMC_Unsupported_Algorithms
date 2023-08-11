@@ -23,6 +23,8 @@ The managed devices still running with these deprecated settings are unable to b
 ## A proposed solution:
 Use the Cisco Secure Firewall Management Center (FMC) API to leverage the information about VPNs, automatically parse the unsecure configurations and create a log file.
 
+![Screenshot](example_running.png)
+
 ## Understanding the script logic (UML):
 
           +----------------------------------------------------+
@@ -114,7 +116,6 @@ pip3 install -r requirements.txt
 ```
 python3 get_vpn_requirements.py
 ```
-
 
 # Contacts
 * Renan Hingel (renanhingel@gmail.com)
