@@ -31,29 +31,30 @@ Use the Cisco Secure Firewall Management Center (FMC) API to leverage the inform
                               |
                               V
           +----------------------------------------------------+
-          |              Launch GET Request                     |
-          |   /api/fmc_config/v1/domain/{domainUUID}/policy/    |
-          |              ftds2svpns                             |
+          |              Launch GET Request                    |
+          |   /api/fmc_config/v1/domain/{domainUUID}/policy/   |
+          |              ftds2svpns                            |
           +----------------------------------------------------+
                               |
                               V
-          +----------------------------------------------------+
-          |        Loop through Result and Store VPN Info      |
-          +----------------------------------------------------+
-                              |
-                              V
-          +----------------------------------------------------+
-          |     For Each VPN Name and ID, Launch GET Request   |
-          | /api/fmc_config/v1/domain/{domainUUID}/policy/     |
-          |  ftds2svpns/{objectId}                             |
-          +----------------------------------------------------+
-                              |
-                              V
-          +----------------------------------------------------+
-          |    Extend IKE Policy by Launching GET Request      |
-          | /api/fmc_config/v1/domain/{domainUUID}/policy/     |
-          |  ftds2svpns/{containerUUID}/ikesettings/{objectId} |
-          +----------------------------------------------------+
+          +--------------------------------------------------------------------+
+          |  Loop (For Each VPN Name and ID)                                   |
+          |                                                                    |
+          |    +-----------------------------------------------------------+   |
+          |    | Launch GET Request to Obtain IKE Settings                 |   |
+          |    | /api/fmc_config/v1/domain/{domainUUID}/policy/            |   |
+          |    |     ftds2svpns/{objectId}                                 |   |
+          |    +-----------------------------------------------------------+   |
+          |                              |                                     |
+          |                              V                                     |
+          |    +-----------------------------------------------------------+   |
+          |    |    Extend IKE Policy by Launching                         |   |
+          |    |    GET Request                                            |   |
+          |    | /api/fmc_config/v1/domain/{domainUUID}/policy/            |   |
+          |    |   ftds2svpns/{containerUUID}/ikesettings/{objectId}       |   |
+          |    +-----------------------------------------------------------+   |
+          |                                                                    |
+          +--------------------------------------------------------------------+
                               |
                               V
           +----------------------------------------------------+
@@ -66,6 +67,7 @@ Use the Cisco Secure Firewall Management Center (FMC) API to leverage the inform
           +----------------------------------------------------+
           |                  End Program                       |
           +----------------------------------------------------+
+
 
 
 # Contacts
