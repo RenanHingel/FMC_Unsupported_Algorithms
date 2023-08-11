@@ -70,9 +70,6 @@ Use the Cisco Secure Firewall Management Center (FMC) API to leverage the inform
 
 
 
-# Contacts
-* Renan Hingel (renanhingel@gmail.com)
-
 ## Solution Components
 * Cisco FMC API
 * Python
@@ -117,3 +114,7 @@ pip3 install -r requirements.txt
 ```
 python3 get_vpn_requirements.py
 ```
+
+
+# Contacts
+* Renan Hingel (renanhingel@gmail.com)
