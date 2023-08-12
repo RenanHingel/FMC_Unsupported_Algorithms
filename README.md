@@ -1,5 +1,5 @@
-# fmc_unsupported_algorithms
-
+# FMC_Unsupported_Algorithms
+[![published](https://static.production.devnetcloud.com/codeexchange/assets/images/devnet-published.svg)](https://developer.cisco.com/codeexchange/github/repo/RenanHingel/fmc_unsupported_algorithms)
 ## The motivator:
 To elevate the security standards, Cisco updated the acceptable algorithms that may be used to build VPN tunnels starting from firmware 6.7 and superior versions.
 
