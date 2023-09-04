@@ -91,28 +91,31 @@ if vpn_s2s_data:
         log_and_print(f"|    |   |--- ikeV2Enabled: {isikev2}")
 
         # Nested loop to find IKEv2 IPSEC proposal details
-        for proposal in vpn_details_data["ipsecSettings"]["ikeV2IpsecProposal"]:
-            proposal_info = proposal["name"]
-            proposal_id = proposal["id"]
+        try:
+            for proposal in vpn_details_data["ipsecSettings"]["ikeV2IpsecProposal"]:
+                proposal_info = proposal["name"]
+                proposal_id = proposal["id"]
 
-            ipsec_lifetime = vpn_details_data["ipsecSettings"]["lifetimeSeconds"]
-            ipsec_size = vpn_details_data["ipsecSettings"]["lifetimeKilobytes"]
-            pfs_enabled = vpn_details_data["ipsecSettings"]["perfectForwardSecrecy"]["enabled"]
-            agressive_mode = vpn_details_data["advancedSettings"]["advancedIkeSetting"]["enableAggressiveMode"]
+                ipsec_lifetime = vpn_details_data["ipsecSettings"]["lifetimeSeconds"]
+                ipsec_size = vpn_details_data["ipsecSettings"]["lifetimeKilobytes"]
+                pfs_enabled = vpn_details_data["ipsecSettings"]["perfectForwardSecrecy"]["enabled"]
+                agressive_mode = vpn_details_data["advancedSettings"]["advancedIkeSetting"]["enableAggressiveMode"]
 
-            log_and_print(f"|    |--- IKEv2 IPsec Proposal:")
-            log_and_print(f"|    |   |--- Name: {proposal_info}")
-            log_and_print(f"|    |   |   |--- IPsec Lifetime: {ipsec_lifetime}")
-            log_and_print(f"|    |   |   |--- IPsec Size: {ipsec_size}")
-            log_and_print(f"|    |   |   |--- PFS Enabled: {pfs_enabled}")
-            log_and_print(f"|    |   |   |--- Agressive Mode: {agressive_mode}")
+                log_and_print(f"|    |--- IKEv2 IPsec Proposal:")
+                log_and_print(f"|    |   |--- Name: {proposal_info}")
+                log_and_print(f"|    |   |   |--- IPsec Lifetime: {ipsec_lifetime}")
+                log_and_print(f"|    |   |   |--- IPsec Size: {ipsec_size}")
+                log_and_print(f"|    |   |   |--- PFS Enabled: {pfs_enabled}")
+                log_and_print(f"|    |   |   |--- Agressive Mode: {agressive_mode}")
 
-        ike_settings_id = vpn_details_data['ikeSettings']['id']
-        # Third API call - Get details of the IKE Settings used in this VPN S2S
-        ike_settings_uri = base_url + "/api/fmc_config/v1/domain/" + DOMAIN_UUID + f"/policy/ftds2svpns/{ftds2svpns_id}/ikesettings/{ike_settings_id}"
-        ike_settings_data = api_call_get(ike_settings_uri)
+            ike_settings_id = vpn_details_data['ikeSettings']['id']
+            # Third API call - Get details of the IKE Settings used in this VPN S2S
+            ike_settings_uri = base_url + "/api/fmc_config/v1/domain/" + DOMAIN_UUID + f"/policy/ftds2svpns/{ftds2svpns_id}/ikesettings/{ike_settings_id}"
+            ike_settings_data = api_call_get(ike_settings_uri)
 
-        # Since each VPN S2S can have more than one IKE Settings, we loop inside this result to obtain the data needed for the last API call
+            # Since each VPN S2S can have more than one IKE Settings, we loop inside this result to obtain the data needed for the last API call
+        except:
+            log_and_print(f"|    |--- IKEv2 IPsec Proposal: NONE")
         if ike_settings_data:
             policy_details = extract_policy_details([ike_settings_data])
             for policy in policy_details:
