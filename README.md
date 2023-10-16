@@ -125,13 +125,13 @@ pip install virtualenv
 
 ##### Create a new venv
 ```
-# Change to your project folder
++++ Change to your project folder
 cd fmc_unsupported_algorithms
 
-# Create the venv
++++ Create the venv
 virtualenv venv
 
-# Activate your venv
++++ Activate your venv
 source venv/bin/activate
 ```
 
