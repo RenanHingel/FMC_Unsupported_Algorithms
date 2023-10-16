@@ -1,5 +1,8 @@
 ## Changelog:
 
+Version 1.0.6:
++ Fixed faulty IKE and IPsec lists
+
 Version 1.0.5:
 + Reworked IKEv1 IKE Policy review
 + Encryption Algorithms review
