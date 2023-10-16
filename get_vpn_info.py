@@ -1,9 +1,9 @@
 ########################################################
 # FMC_Unsupported_Algorithms
 #
-# Changelog for current version 1.0.4:
-# + Fixed IKE policy parsing
-# + Added one second delay to prevent rate limiting issues
+# Changelog for current version 1.0.5:
+# + IKEv1 IKE Policy review
+# + Encryption Algorithms review
 #
 # For full version control, please refer to https://github.com/RenanHingel/fmc_unsupported_algorithms
 ########################################################
@@ -11,14 +11,32 @@
 import time
 import requests
 import urllib3
-import json
 import getpass
 from requests.auth import HTTPBasicAuth
 import datetime
 import csv
 urllib3.disable_warnings()
 
-version = "1.0.4"
+version = "1.0.5"
+
+address = input("Enter the FMC IP address: ")
+username = input("Enter your username: ")
+password = getpass.getpass(prompt="Enter your password: ")
+base_url = "https://" + address
+verbose = True
+
+# Declaring variables
+review_ike_policies = {}
+vpn_data_list = []
+todays_date = datetime.datetime.now()
+logfile = f"output_{todays_date.day}{todays_date.month}{todays_date.year}{todays_date.hour}{todays_date.minute}.txt"
+log = open(logfile,"a")
+
+
+def log_and_print(input_string, verbose):
+    if verbose == True:
+        print(input_string)
+    log.write(input_string + '\n')
 
 def api_call_get(api_url):
     try:
@@ -28,143 +46,170 @@ def api_call_get(api_url):
     except requests.exceptions.RequestException as e:
         print(f"Error during API request: {e}")
         return None
+
+def review_ike_policy(policy, review, version):
+    if version == 1:
+        encryption_search = "encryption"
+        dh_search = "diffieHellmanGroup"
+    if version == 2:
+        encryption_search = "encryptionAlgorithms"
+        dh_search = "diffieHellmanGroups"
+
+    invalid_algorithms = ['3DES', 'AES-GMAC', 'AES-GMAC-192', 'AES-GMAC-256', 'DES', 'NULL']
+    required_groups = [2, 5, 24]
+
+    invalid_algorithms_found = [algorithm for algorithm in invalid_algorithms if algorithm in policy[encryption_search]]
+    if invalid_algorithms_found:
+        review[policy['name']] = {'Encryption': invalid_algorithms_found}
+
+    if isinstance(policy[dh_search], int):
+        policy[dh_search] = [policy[dh_search]]
+
+    dh_groups_found = [group for group in policy[dh_search] if group in required_groups]
+    if dh_groups_found:
+        if policy['name'] in review:
+            review[policy['name']]['DH group'] = dh_groups_found
+        else:
+            review[policy['name']] = {'DH group': dh_groups_found}
+
+def review_ipsec_proposals(proposal_data, version):
+    review_result = {}
+    invalid_algorithms = ['3DES', 'AES-GMAC', 'AES-GMAC-192', 'AES-GMAC-256', 'DES', 'NULL']
+
+    for item in proposal_data['items']:
+        proposal_name = item['name']
+        invalid_algorithms_found = []
+
+        if version == 1:
+            esp_encryption = item["espEncryption"]
+            if esp_encryption in invalid_algorithms:
+                invalid_algorithms_found.append(esp_encryption)
+
+        if version == 2:
+            encryption_algorithms = item["encryptionAlgorithms"]
+            for algorithm in encryption_algorithms:
+                if algorithm in invalid_algorithms:
+                    invalid_algorithms_found.append(algorithm)
+
+        if invalid_algorithms_found:
+            review_result[proposal_name] = {'Encryption': invalid_algorithms_found}
     
-def extract_policy_details(ike_settings_data):
-    policy_details = []
-    for item in ike_settings_data:
-        policies = item['ikeV2Settings']['policy']
-        name = policies['name']
-        policy_id = policies['id']
-        policy_details.append({'name': name, 'id': policy_id})
-    return policy_details
+    return review_result
 
-def log_and_print(input_string):
-    print(input_string)
-    log.write(input_string + '\n')
-
-# FMC information
-address = input("Enter the FMC IP address: ")
-username = input("Enter your username: ")
-password = getpass.getpass(prompt="Enter your password: ")
-base_url = "https://" + address
-
-# Declaring variables
-vpn_data_list = []
-todays_date = datetime.datetime.now()
-logfile = f"output_{todays_date.day}{todays_date.month}{todays_date.year}{todays_date.hour}{todays_date.minute}.txt"
-log = open(logfile,"a")
-
-log_and_print(f"==========================================================")
-log_and_print(f"FMC Unsupported Algorithms - Version {version}")
-log_and_print(f"This script aims to leverage Cisco FMC API to look for DH group 2, 5 and 24 on IKEv2 VPN configurations.\n")
-log_and_print(f"According to Cisco's history for Site-to-Site VPN, the following information is valid for firmware 6.7 and above: ")
-log_and_print(f"- Diffie-Hellman GROUP 5 is deprecated for IKEv1 and removed for IKEv2")
-log_and_print(f"- Diffie-Hellman groups 2 and 24 have been removed.")
-log_and_print(f"- Encryption algorithms: 3DES, AES-GMAC, AES-GMAC-192, AES-GMAC-256 have been removed.")
-log_and_print(f"Source: https://www.cisco.com/c/en/us/td/docs/security/secure-firewall/management-center/device-config/720/management-center-device-config-72/vpn-s2s.html")
-log_and_print(f"----------------------------------------------------------")
-log_and_print(f"Connecting to FMC {base_url}")
 
 # Start of FMC access token token generation
+log_and_print(f"==========================================================", True)
+log_and_print(f"FMC Unsupported Algorithms - Version {version}", True)
+
 token_uri = "/api/fmc_platform/v1/auth/generatetoken"
 response = requests.request("POST", base_url + token_uri, verify=False, auth=HTTPBasicAuth(username, password))
 accesstoken = response.headers["X-auth-access-token"]
 refreshtoken = response.headers["X-auth-refresh-token"]
 DOMAIN_UUID = response.headers["DOMAIN_UUID"]
-log_and_print(f"Connection status code: {response.status_code}")
+log_and_print(f"Connection status code: {response.status_code}", True)
 
 # Define headers for all subsequent API calls
 headers = { 'Content-Type': 'application/json', 'x-auth-access-token': accesstoken }
 
-# First API call - Obtain list of VPN S2S
-ftds2svpns_uri = base_url + "/api/fmc_config/v1/domain/" + DOMAIN_UUID + "/policy/ftds2svpns?limit=1000"
-vpn_s2s_data = api_call_get(ftds2svpns_uri)
-total_vpn_count = int(vpn_s2s_data["paging"]["count"])
-current_vpn_count = 0
+# List of FMC API endpoints used by this script
+ikev1_ipsecproposals_uri = "/api/fmc_config/v1/domain/" + DOMAIN_UUID + "/object/ikev1ipsecproposals?offset=0&limit=4&expanded=true"
+ikev2_ipsecproposals_uri = "/api/fmc_config/v1/domain/" + DOMAIN_UUID + "/object/ikev2ipsecproposals?offset=0&limit=10&expanded=true"
+ikev1_policies_uri = "/api/fmc_config/v1/domain/" + DOMAIN_UUID + "/object/ikev1policies?offset=0&limit=10&expanded=true"
+ikev2_policies_uri = "/api/fmc_config/v1/domain/" + DOMAIN_UUID + "/object/ikev2policies?offset=0&limit=10&expanded=true"
 
-if vpn_s2s_data:
-    ftds2svpn_entries = []
+# Get IPSEC proposals data
+ikev1ipsecproposals_data = api_call_get(base_url + ikev1_ipsecproposals_uri)
+ikev2ipsecproposals_data = api_call_get(base_url + ikev2_ipsecproposals_uri)
 
-    # Now loop inside the first API response to obtain name and ID of each VPN S2S
-    for item in vpn_s2s_data["items"]:      
-        ftds2svpns_name = item["name"]
-        ftds2svpns_id = item["id"]
+# Get IKE policies data
+ikev1policies_data = api_call_get(base_url + ikev1_policies_uri)
+ikev2policies_data = api_call_get(base_url + ikev2_policies_uri)
 
-        # Second API call - Get details of each VPN S2S
-        ftds2svpns_details_uri = base_url + "/api/fmc_config/v1/domain/" + DOMAIN_UUID + f"/policy/ftds2svpns/{ftds2svpns_id}"
-        vpn_details_data = api_call_get(ftds2svpns_details_uri)
+# Iterate through the items - IKEv1 and IKEv2 IKE Policy
+for item in ikev1policies_data['items']:
+    review_ike_policy(item, review_ike_policies, 1)
+for item in ikev2policies_data['items']:
+    review_ike_policy(item, review_ike_policies, 2)
 
-        # From this response we need the IKE Settings ID only
-        isikev1 = str(vpn_details_data["ikeV1Enabled"])
-        isikev2 = str(vpn_details_data["ikeV2Enabled"])
+# Iterate through the items - IKEv1 and IKEv2 IPSEC Proposals
+ikev1_ipsec_review_result = review_ipsec_proposals(ikev1ipsecproposals_data, 1)
+ikev2_ipsec_review_result = review_ipsec_proposals(ikev2ipsecproposals_data, 2)
 
-        log_and_print(f"|--- VPN Name: {ftds2svpns_name}")
-        log_and_print(f"|    |--- IKE Modes:")
-        log_and_print(f"|    |   |--- ikeV1Enabled: {isikev1}")
-        log_and_print(f"|    |   |--- ikeV2Enabled: {isikev2}")
+# Now that we know which IKE policies and IPsec proposals need to be fixed, we will pull the complete VPN list for this FMC
+all_vpn_uri = "/api/fmc_config/v1/domain/e276abec-e0f2-11e3-8169-6d9ed49b625f/policy/ftds2svpns?limit=1000&expanded=true"
+all_vpn_data = api_call_get(base_url + all_vpn_uri)
 
-        try:
-            for proposal in vpn_details_data["ipsecSettings"]["ikeV2IpsecProposal"]:
-                proposal_info = proposal["name"]
-                proposal_id = proposal["id"]
+# Then, for each VPN configured, we will find it's IKE and IPsec information, then match it against the audit we did previously
+for item in all_vpn_data["items"]:
+        current_vpn_ipsec_list = []
+        current_vpn_ike_policy_list = []
 
-                ipsec_lifetime = vpn_details_data["ipsecSettings"]["lifetimeSeconds"]
-                ipsec_size = vpn_details_data["ipsecSettings"]["lifetimeKilobytes"]
-                pfs_enabled = vpn_details_data["ipsecSettings"]["perfectForwardSecrecy"]["enabled"]
-                agressive_mode = vpn_details_data["advancedSettings"]["advancedIkeSetting"]["enableAggressiveMode"]
+        vpn_name = item["name"]
+        vpn_id = item["id"]
 
-                log_and_print(f"|    |--- IKEv2 IPsec Proposal:")
-                log_and_print(f"|    |   |--- Name: {proposal_info}")
-                log_and_print(f"|    |   |   |--- IPsec Lifetime: {ipsec_lifetime}")
-                log_and_print(f"|    |   |   |--- IPsec Size: {ipsec_size}")
-                log_and_print(f"|    |   |   |--- PFS Enabled: {pfs_enabled}")
-                log_and_print(f"|    |   |   |--- Agressive Mode: {agressive_mode}")
+        isikev1 = item["ikeV1Enabled"]
+        isikev2 = item["ikeV2Enabled"]
 
-            ike_settings_id = vpn_details_data['ikeSettings']['id']
-            # Third API call - Get details of the IKE Settings used in this VPN S2S
-            ike_settings_uri = base_url + "/api/fmc_config/v1/domain/" + DOMAIN_UUID + f"/policy/ftds2svpns/{ftds2svpns_id}/ikesettings/{ike_settings_id}"
-            ike_settings_data = api_call_get(ike_settings_uri)
+        ike_settings_id = item['ikeSettings']['id']
+        ike_settings_uri = base_url + "/api/fmc_config/v1/domain/" + DOMAIN_UUID + f"/policy/ftds2svpns/{vpn_id}/ikesettings/{ike_settings_id}"
+        ike_settings_data = api_call_get(ike_settings_uri)
 
-            # Since each VPN S2S can have more than one IKE Settings, we loop inside this result to obtain the data needed for the last API call
-            if ike_settings_data:
-                policy_details = extract_policy_details([ike_settings_data])
-                for policy in policy_details:
+        if isikev1 == True:
+            for proposal in item["ipsecSettings"]["ikeV1IpsecProposal"]:
+                proposal_name = proposal["name"]
+                current_vpn_ipsec_list.append(proposal_name)
+            ikev1_policies = [policy['name'] for policy in ike_settings_data['ikeV1Settings']['policies']]
+            current_vpn_ike_policy_list.extend(ikev1_policies)
+        
+        if isikev2 == True:
+            for proposal in item["ipsecSettings"]["ikeV2IpsecProposal"]:
+                proposal_name = proposal["name"]
+                current_vpn_ipsec_list.append(proposal_name)
+            ikev2_policies = [policy['name'] for policy in ike_settings_data['ikeV2Settings']['policies']]
+            current_vpn_ike_policy_list.extend(ikev2_policies)
+       
 
-                    # We only need the name and ID of each IKE Settings ID
-                    ikepolicy_name = policy["name"]
-                    ikepolicy_id = policy["id"]
-                    log_and_print(f"|    |--- IKE Policy Name: {ikepolicy_name}")
+        log_and_print("==========================================================", True)
+        log_and_print(f"|--- VPN Name: {vpn_name}", True)
+        log_and_print(f"|    |--- IPsec Proposals: {', '.join(current_vpn_ipsec_list)}", True)
+        log_and_print(f"|    |--- IKE Proposals: {', '.join(current_vpn_ike_policy_list)}", True)
 
-                    # Fourth API call - Get details of the IKE Policy
-                    ike_details_uri = base_url + "/api/fmc_config/v1/domain/" + DOMAIN_UUID + f"/object/ikev2policies/{ikepolicy_id}"
-                    ike_details_data = api_call_get(ike_details_uri)
+        for item in current_vpn_ipsec_list:
+            ipsec_fix_list = []
+            if item in ikev1_ipsec_review_result:
+                ikev1_encryption_info = ', '.join(ikev1_ipsec_review_result[item]['Encryption'])
+                ipsec_fix_list.append(ikev1_encryption_info)
+                log_and_print(f"Review needed - IKEv1 IPsec proposal {item} - REMOVED encryption: {ikev1_encryption_info}", True)
+            if item in ikev2_ipsec_review_result:
+                ikev2_encryption_info = ', '.join(ikev2_ipsec_review_result[item]['Encryption'])
+                ipsec_fix_list.append(ikev2_encryption_info)
+                log_and_print(f"Review needed - IKEv2 IPsec proposal {item} - REMOVED encryption: {ikev2_encryption_info}", True)
 
-                    # Extract required information
-                    encryption_algorithms = ike_details_data.get("encryptionAlgorithms", [])
-                    integrity_algorithms = ike_details_data.get("integrityAlgorithms", [])
-                    diffie_hellman_groups = ike_details_data.get("diffieHellmanGroups", [])
+        for item in current_vpn_ike_policy_list:
+            if item in review_ike_policies:
+                ike_fix_list= []
+                policy_info = review_ike_policies[item]
+                encryption_info = ', '.join(policy_info.get('Encryption', []))
+                dh_group_info = ', '.join(str(group) for group in policy_info.get('DH group', []))
+                ike_fix_list.append(encryption_info)
+                ike_fix_list.append(dh_group_info)
 
-                    # Print the extracted information
-                    log_and_print(f"|    |   |--- Encryption Algorithms:: {', '.join(map(str, encryption_algorithms))}")
-                    log_and_print(f"|    |   |--- Integrity Algorithms:: {', '.join(map(str, integrity_algorithms))}")
-                    log_and_print(f"|    |   |--- Diffie Hellman Groups:: {', '.join(map(str, diffie_hellman_groups))}")
-
-                    # Check if the policy needs review
-                    review_groups = [group for group in diffie_hellman_groups if group in [2, 5, 24]]
-                    if review_groups:
-                        log_and_print(f"*** Review required for {ikepolicy_name}. Found in Diffie-Hellman groups: {', '.join(map(str, review_groups))} ***")
-                        vpn_data_list.append([ftds2svpns_name, ikepolicy_name, ', '.join(map(str, review_groups))])
-        except:
-            log_and_print(f"|    |--- IKEv2 IPsec Proposal: NONE")
-        log_and_print("-------------------------------------")
+                ike_review_info = f"Review needed for {item}"
+                if encryption_info:
+                    ike_review_info += f" - REMOVED encryption: {encryption_info}"
+                if dh_group_info:
+                    ike_review_info += f" - REMOVED DH Groups: {dh_group_info}"
+                log_and_print(ike_review_info, True)
+        vpn_data_list.append([vpn_name,' '.join(current_vpn_ike_policy_list),' '.join(ike_fix_list),' '.join(current_vpn_ipsec_list),' '.join(ipsec_fix_list)])
         time.sleep(1)
+print("==========================================================")
 
-csv_filename = f"vpn_report_{todays_date.day}{todays_date.month}{todays_date.year}{todays_date.hour}{todays_date.minute}.csv"
+csv_filename = f"vpn_report_DATE{todays_date.day}{todays_date.month}{todays_date.year}_TIME{todays_date.hour}_{todays_date.minute}.csv"
 with open(csv_filename, 'w', newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(['vpn_name', 'ike_v2_policy_name', 'low_dh_group_found'])
+    csv_writer.writerow(['vpn_name', 'ike_policies','ike_fix_list', 'ipsec_proposals','ipsec_fix_list'])
     csv_writer.writerows(vpn_data_list)
 
-log_and_print(f"Collected information written to: {logfile}")
-log_and_print(f"Collected information written to: {csv_filename}")
-log_and_print(f"==========================================================")
+log_and_print(f"Collected information written to: {logfile}", True)
+log_and_print(f"Collected information written to: {csv_filename}", True)
+log_and_print(f"==========================================================", True)
