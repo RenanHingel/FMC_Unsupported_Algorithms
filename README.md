@@ -1,16 +1,15 @@
-# FMC_Unsupported_Algorithms - Update 1.0.5!
+# FMC_Unsupported_Algorithms - Update 1.0.6!
 [![published](https://static.production.devnetcloud.com/codeexchange/assets/images/devnet-published.svg)](https://developer.cisco.com/codeexchange/github/repo/RenanHingel/fmc_unsupported_algorithms)[![Run in Cisco Cloud IDE](https://static.production.devnetcloud.com/codeexchange/assets/images/devnet-runable-icon.svg)](https://developer.cisco.com/devenv/?id=devenv-vscode-base&GITHUB_SOURCE_REPO=https://github.com/RenanHingel/fmc_unsupported_algorithms)
 
 ## Recent changes:
 
-Version 1.0.5:
+Oct 16 - Version 1.0.6:
++ Fixed faulty IKE and IPsec lists
+
+Oct 16 - Version 1.0.5:
 + Reworked IKEv1 IKE Policy review
 + Encryption Algorithms review
 + Removed debug logging, instead, logging function is verbose aware now - future use
-
-Version 1.0.4:
-+ Fixed IKEv1 policy parsing
-+ Added one second delay to prevent rate limiting issues
 
 [View more on the changelog file](changelog.txt)
 
