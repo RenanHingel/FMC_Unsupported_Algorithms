@@ -97,10 +97,19 @@ def review_ipsec_proposals(proposal_data, version):
     return review_result
 
 
-# Start of FMC access token token generation
+# Script header
 log_and_print(f"==========================================================", True)
 log_and_print(f"FMC Unsupported Algorithms - Version {version}", True)
+log_and_print(f"This script aims to leverage Cisco FMC API to look for DH group 2, 5 and 24 on IKEv2 VPN configurations.\n", verbose)
+log_and_print(f"According to Cisco's history for Site-to-Site VPN, the following information is valid for firmware 6.7 and above: ", verbose)
+log_and_print(f"- Diffie-Hellman GROUP 5 is deprecated for IKEv1 and removed for IKEv2", verbose)
+log_and_print(f"- Diffie-Hellman groups 2 and 24 have been removed.", verbose)
+log_and_print(f"- Encryption algorithms: 3DES, AES-GMAC, AES-GMAC-192, AES-GMAC-256 have been removed.", verbose)
+log_and_print(f"Source: https://www.cisco.com/c/en/us/td/docs/security/secure-firewall/management-center/device-config/720/management-center-device-config-72/vpn-s2s.html", verbose)
+log_and_print(f"----------------------------------------------------------", True)
+log_and_print(f"Connecting to FMC {base_url}", True)
 
+# Start of FMC access token token generation
 token_uri = "/api/fmc_platform/v1/auth/generatetoken"
 response = requests.request("POST", base_url + token_uri, verify=False, auth=HTTPBasicAuth(username, password))
 accesstoken = response.headers["X-auth-access-token"]
