@@ -1,9 +1,8 @@
 ########################################################
 # FMC_Unsupported_Algorithms
 #
-# Changelog for current version 1.0.5:
-# + IKEv1 IKE Policy review
-# + Encryption Algorithms review
+# Changelog for current version 1.0.6:
+# + Fixed faulty IKE and IPsec lists
 #
 # For full version control, please refer to https://github.com/RenanHingel/fmc_unsupported_algorithms
 ########################################################
@@ -17,7 +16,7 @@ import datetime
 import csv
 urllib3.disable_warnings()
 
-version = "1.0.5"
+version = "1.0.6"
 
 address = input("Enter the FMC IP address: ")
 username = input("Enter your username: ")
@@ -29,7 +28,7 @@ verbose = True
 review_ike_policies = {}
 vpn_data_list = []
 todays_date = datetime.datetime.now()
-logfile = f"output_{todays_date.day}{todays_date.month}{todays_date.year}{todays_date.hour}{todays_date.minute}.txt"
+logfile = f"output_DATE{todays_date.day}{todays_date.month}{todays_date.year}_TIME{todays_date.hour}{todays_date.minute}.txt"
 log = open(logfile,"a")
 
 
@@ -148,6 +147,8 @@ all_vpn_data = api_call_get(base_url + all_vpn_uri)
 
 # Then, for each VPN configured, we will find it's IKE and IPsec information, then match it against the audit we did previously
 for item in all_vpn_data["items"]:
+        ipsec_fix_list = []
+        ike_fix_list= []
         current_vpn_ipsec_list = []
         current_vpn_ike_policy_list = []
 
@@ -182,39 +183,38 @@ for item in all_vpn_data["items"]:
         log_and_print(f"|    |--- IKE Proposals: {', '.join(current_vpn_ike_policy_list)}", True)
 
         for item in current_vpn_ipsec_list:
-            ipsec_fix_list = []
             if item in ikev1_ipsec_review_result:
                 ikev1_encryption_info = ', '.join(ikev1_ipsec_review_result[item]['Encryption'])
-                ipsec_fix_list.append(ikev1_encryption_info)
-                log_and_print(f"Review needed - IKEv1 IPsec proposal {item} - REMOVED encryption: {ikev1_encryption_info}", True)
+                ike_review_info = f"Review needed - IKEv1 IPsec proposal {item} - REMOVED encryption: {ikev1_encryption_info}"
+                ipsec_fix_list.append(ike_review_info)
+                log_and_print(ike_review_info, True)
             if item in ikev2_ipsec_review_result:
                 ikev2_encryption_info = ', '.join(ikev2_ipsec_review_result[item]['Encryption'])
-                ipsec_fix_list.append(ikev2_encryption_info)
-                log_and_print(f"Review needed - IKEv2 IPsec proposal {item} - REMOVED encryption: {ikev2_encryption_info}", True)
+                ike_review_info = f"Review needed - IKEv2 IPsec proposal {item} - REMOVED encryption: {ikev2_encryption_info}"
+                ipsec_fix_list.append(ike_review_info)
+                log_and_print(ike_review_info, True)
 
         for item in current_vpn_ike_policy_list:
             if item in review_ike_policies:
-                ike_fix_list= []
                 policy_info = review_ike_policies[item]
                 encryption_info = ', '.join(policy_info.get('Encryption', []))
                 dh_group_info = ', '.join(str(group) for group in policy_info.get('DH group', []))
-                ike_fix_list.append(encryption_info)
-                ike_fix_list.append(dh_group_info)
 
                 ike_review_info = f"Review needed for {item}"
                 if encryption_info:
                     ike_review_info += f" - REMOVED encryption: {encryption_info}"
                 if dh_group_info:
                     ike_review_info += f" - REMOVED DH Groups: {dh_group_info}"
+                ike_fix_list.append(ike_review_info)
                 log_and_print(ike_review_info, True)
-        vpn_data_list.append([vpn_name,' '.join(current_vpn_ike_policy_list),' '.join(ike_fix_list),' '.join(current_vpn_ipsec_list),' '.join(ipsec_fix_list)])
+        vpn_data_list.append([vpn_name,', '.join(current_vpn_ike_policy_list),', '.join(ike_fix_list),', '.join(current_vpn_ipsec_list),', '.join(ipsec_fix_list)])
         time.sleep(1)
 print("==========================================================")
 
 csv_filename = f"vpn_report_DATE{todays_date.day}{todays_date.month}{todays_date.year}_TIME{todays_date.hour}_{todays_date.minute}.csv"
 with open(csv_filename, 'w', newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(['vpn_name', 'ike_policies','ike_fix_list', 'ipsec_proposals','ipsec_fix_list'])
+    csv_writer.writerow(['vpn_name', 'IKE_policies','IKE_fix_list', 'IPSEC_policies','IPSEC_fix_list'])
     csv_writer.writerows(vpn_data_list)
 
 log_and_print(f"Collected information written to: {logfile}", True)
