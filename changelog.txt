@@ -1,0 +1,21 @@
+## Changelog:
+
+Version 1.0.5:
++ Reworked IKEv1 IKE Policy review
++ Encryption Algorithms review
++ Removed debug logging, instead, logging function is verbose aware now - future use
+
+Version 1.0.4:
++ Fixed IKEv1 policy parsing
++ Added one second delay to prevent rate limiting issues
+
+Version 1.0.3
++ Added limit=1000 to handle pagination
++ Added debug logging
++ Added IKEv1 support
+
+Version 1.0.2
++ Added a try/except layer to expect IKEv2 IPsec Proposal: NONE
+
+Version 1.0.0 and 1.0.1
++ Complete chaos, don't rollback to these :-)
