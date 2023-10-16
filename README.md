@@ -1,5 +1,6 @@
-# FMC_Unsupported_Algorithms
+# FMC_Unsupported_Algorithms - Update 1.0.5!
 [![published](https://static.production.devnetcloud.com/codeexchange/assets/images/devnet-published.svg)](https://developer.cisco.com/codeexchange/github/repo/RenanHingel/fmc_unsupported_algorithms)[![Run in Cisco Cloud IDE](https://static.production.devnetcloud.com/codeexchange/assets/images/devnet-runable-icon.svg)](https://developer.cisco.com/devenv/?id=devenv-vscode-base&GITHUB_SOURCE_REPO=https://github.com/RenanHingel/fmc_unsupported_algorithms)
+
 ## The motivator:
 To elevate the security standards, Cisco updated the acceptable algorithms that may be used to build VPN tunnels starting from firmware 6.7 and superior versions.
 
@@ -21,55 +22,70 @@ However, if you need to generate a structured report and contact dozens (and som
 The managed devices still running with these deprecated settings are unable to be upgraded past firmware 6.6.X, this poses a stability and security threat to your network environment.
 
 ## A proposed solution:
-Use the Cisco Secure Firewall Management Center (FMC) API to leverage the information about VPNs, automatically parse the unsecure configurations and create a log file.
+Use the Cisco Secure Firewall Management Center (FMC) API to leverage the information about VPNs, automatically parse the unsecure configurations and create a log file with completed run details and a clean CSV file containing just the important information.
 
-![Screenshot](example_running.png)
+![Screenshot](img_script.png)
 
 ## Understanding the script logic (UML):
 
-          +----------------------------------------------------+
-          |                 Start Program                      |
-          +----------------------------------------------------+
-                              |
-                              V
-          +----------------------------------------------------+
-          |              Launch GET Request                    |
-          |   /api/fmc_config/v1/domain/{domainUUID}/policy/   |
-          |              ftds2svpns                            |
-          +----------------------------------------------------+
-                              |
-                              V
-          +--------------------------------------------------------------------+
-          |  Loop (For Each VPN Name and ID)                                   |
-          |                                                                    |
-          |    +-----------------------------------------------------------+   |
-          |    | Launch GET Request to Obtain IKE Settings                 |   |
-          |    | /api/fmc_config/v1/domain/{domainUUID}/policy/            |   |
-          |    |     ftds2svpns/{objectId}                                 |   |
-          |    +-----------------------------------------------------------+   |
-          |                              |                                     |
-          |                              V                                     |
-          |    +-----------------------------------------------------------+   |
-          |    |    Extend IKE Policy by Launching                         |   |
-          |    |    GET Request                                            |   |
-          |    | /api/fmc_config/v1/domain/{domainUUID}/policy/            |   |
-          |    |   ftds2svpns/{containerUUID}/ikesettings/{objectId}       |   |
-          |    +-----------------------------------------------------------+   |
-          |                                                                    |
-          +--------------------------------------------------------------------+
-                              |
-                              V
-          +----------------------------------------------------+
-          |   Launch GET Request to Obtain IKEV2 Policy        |
-          | /api/fmc_config/v1/domain/{domainUUID}/object/     |
-          |           ikev2policies/{objectId}                 |
-          +----------------------------------------------------+
-                              |
-                              V
-          +----------------------------------------------------+
-          |                  End Program                       |
-          +----------------------------------------------------+
-
+          +-----------------------------------------------------+
+          |              Start Program                          |
+          +-----------------------------------------------------+
+                V
+          +-----------------------------------------------------+
+          |  Generate FMC token                                 |
+          |  /api/fmc_platform/v1/auth/generatetoken            |
+          +-----------------------------------------------------+
+                V
+          +-----------------------------------------------------+
+          |  Get a full list of all IKEv1 IPSEC Proposals       |
+          |  /api/fmc_config/v1/domain/{domainUUID}/object/     |
+          |  ikev1ipsecproposals?offset=0&limit=4&expanded=true |
+          +-----------------------------------------------------+
+                V
+          +-----------------------------------------------------+
+          |  Get a full list of all IKEv2 IPSEC Proposals       |
+          |  /api/fmc_config/v1/domain/{domainUUID}/object/     |
+          |  ikev2ipsecproposals?offset=0&limit=10&expanded=true|
+          +-----------------------------------------------------+
+                V
+          +-----------------------------------------------------+
+          |  Get a full list of all IKEv1 IKE Policies          |
+          |  /api/fmc_config/v1/domain/{domainUUID}/object/     |
+          |  ikev1policies?offset=0&limit=10&expanded=true      |
+          +-----------------------------------------------------+
+                V
+          +-----------------------------------------------------+
+          |  Get a full list of all IKEv2 IKE Policies          |
+          |  /api/fmc_config/v1/domain/{domainUUID}/object/     |
+          |  ikev2policies?offset=0&limit=10&expanded=true      |
+          +-----------------------------------------------------+
+                V
+          +-----------------------------------------------------+
+          |  Loop (For Each IKEv1 and IKEv2 IKE Policy)         |
+          |                                                     |
+          |    +-----------------------------------------------------------+
+          |    |  Launch GET Request to Obtain IKE Settings                |
+          |    |  /api/fmc_config/v1/domain/{domainUUID}/policy/           |
+          |    |  ftds2svpns/{objectId}/ikesettings/{ike_settings_id}      |
+          |    +-----------------------------------------------------------+
+          |                                                     |
+          +-----------------------------------------------------+
+                V
+          +-----------------------------------------------------+
+          |  Loop (For Each VPN)                                |
+          |                                                     |
+          |    +-----------------------------------------------------------+
+          |    |  Launch GET Request to Obtain VPN Details                 |
+          |    |  /api/fmc_config/v1/domain/{domainUUID}/policy/           |
+          |    |  ftds2svpns/{vpn_id}/ikesettings/{ike_settings_id}        |
+          |    +-----------------------------------------------------------+
+          |                                                     |
+          +-----------------------------------------------------+
+                V
+          +-----------------------------------------------------+
+          |  End Program                                        |
+          +-----------------------------------------------------+
 
 
 ## Solution Components
@@ -117,5 +133,5 @@ pip3 install -r requirements.txt
 python3 get_vpn_requirements.py
 ```
 
-# Contacts
+## Contacts
 * Renan Hingel (renanhingel@gmail.com)
